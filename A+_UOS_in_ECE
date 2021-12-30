@@ -1,0 +1,1134 @@
+`timescale 1ns / 1ps
+
+module LCD_hard(CLK, RESET, BUTTON, LCD_E, LCD_RS, LCD_RW, LCD_DATA, BUS);
+//NUMBER1, NUMBER2, NUMBER3, NUMBER4, OP, ANS1, ANS2, ANS3, ANS4, ANS5,check);
+
+//디버그용
+reg [7:0] NUMBER1, NUMBER2, NUMBER3, NUMBER4, OP, ANS1, ANS2, ANS3, ANS4, ANS5;
+reg [5:0] check;
+reg [3:0] save1, save2, save3, save4;
+
+input CLK, RESET;
+input [15:0] BUTTON;
+input [4:0] BUS;				//계산기 실행
+output LCD_E, LCD_RS, LCD_RW;
+output [7:0] LCD_DATA;
+
+reg [2:0] STATE;
+reg LCD_RS, LCD_RW;
+reg [7:0] LCD_DATA;
+
+//CAL
+reg [127:0] CAL_TEXT;
+reg [7:0] facto1, facto2;
+
+//2018440087
+
+//button
+reg BUTTON0,BUTTON1,BUTTON2,BUTTON3,BUTTON4,BUTTON5,BUTTON6,BUTTON7,BUTTON8, BUTTON9,
+BUTTON10,BUTTON11, BUTTON12, BUTTON13, BUTTON14, BUTTON15, BUS0,BUS1,BUS2,BUS3,BUS4;
+
+wire BUTTONe_0, BUTTONe_1,BUTTONe_2,BUTTONe_3, BUTTONe_4, BUTTONe_5, BUTTONe_6, BUTTONe_7, BUTTONe_8, BUTTONe_9,
+BUTTONe_10, BUTTONe_11, BUTTONe_12, BUTTONe_13, BUTTONe_14, BUTTONe_15, BUS0_e,BUS1_e,BUS2_e,BUS3_e,BUS4_e;
+
+integer NUM1, NUM2, NUM_temp, i, n, NUM_temp1, Memory1, Memory2, //Memory는 결과값을 저장하거나 출력할 때 쓴다.
+ temp1,temp2 , temp3; //temp는 제곱 구할때 사용
+
+integer save_op;
+integer CNT;
+
+parameter DELAY = 3'b000,
+				FUNCTION_SET = 3'b001,
+				ENTRY_MODE = 3'b010,
+				DISP_ONOFF = 3'b011,
+				LINE1 = 3'b100,
+				LINE2 = 3'b101,
+				DELAY_T = 3'b110;
+
+//상수 선언
+`define n0 8'h30
+`define space 8'h20
+`define C 8'h43
+`define E 8'h45
+`define O 8'h4F
+`define R 8'h52
+`define S 8'h53
+always @(posedge CLK or negedge RESET)
+begin
+	if (~RESET)
+	begin
+	CAL_TEXT = {`space,`space,`space,`space,`space,`space,
+	`space,`space,`space,`space,`space,`space,`space,`space,`space,`space};
+	end
+
+	else 
+	begin
+	CAL_TEXT = {`space,NUMBER1,NUMBER2,facto1,OP,NUMBER3,NUMBER4,facto2,8'b00111101,`space,
+																				ANS1,ANS2,ANS3,ANS4,ANS5,`space};
+	end
+	
+end
+
+
+
+always @(posedge CLK or negedge RESET)
+begin
+	if (~RESET)
+		begin
+			BUTTON0 <=0; BUTTON1 <=0; BUTTON2 <=0;BUTTON3 <=0;
+			BUTTON4 <=0; BUTTON5 <=0; BUTTON6 <=0; BUTTON7 <=0; BUTTON8 <=0;  BUTTON9<=0;
+			BUTTON10<=0; BUTTON11 <=0; BUTTON12<=0; BUTTON13<=0;  BUTTON14<=0; BUTTON15<=0;
+			BUS0<=0; BUS1<=0; BUS2<=0; BUS3<=0; BUS4<=0;
+		end
+	else 
+		begin
+		BUTTON0 <= ~BUTTON[0]; BUTTON1 <= ~BUTTON[1]; BUTTON2 <= ~BUTTON[2];
+		BUTTON3 <= ~BUTTON[3]; BUTTON4 <= ~BUTTON[4]; BUTTON5 <= ~BUTTON[5]; BUTTON6 <= ~BUTTON[6];
+		BUTTON7 <= ~BUTTON[7]; BUTTON8 <= ~BUTTON[8]; BUTTON9 <= ~BUTTON[9]; BUTTON10 <= ~BUTTON[10];
+		BUTTON11 <= ~BUTTON[11]; BUTTON12 <= ~BUTTON[12]; BUTTON13 <= ~BUTTON[13];
+		BUTTON14 <= ~BUTTON[14]; BUTTON15 <= ~BUTTON[15];
+		BUS0<=~BUS[0]; BUS1<=~BUS[1]; BUS2<=~BUS[2];
+		BUS3<=~BUS[3]; BUS4<=~BUS[4];
+		end
+end
+
+assign BUTTONe_0 = BUTTON0 & BUTTON[0]; //CLK가 아무리 돌아도 BUTTONe_N은 한번만 1이 된다.
+assign BUTTONe_1 = BUTTON1 & BUTTON[1];
+assign BUTTONe_2 = BUTTON2 & BUTTON[2];
+assign BUTTONe_3 = BUTTON3 & BUTTON[3];
+assign BUTTONe_4 = BUTTON4 & BUTTON[4];
+assign BUTTONe_5 = BUTTON5 & BUTTON[5];
+assign BUTTONe_6 = BUTTON6 & BUTTON[6];
+assign BUTTONe_7 = BUTTON7 & BUTTON[7];
+assign BUTTONe_8 = BUTTON8 & BUTTON[8];
+assign BUTTONe_9 = BUTTON9 & BUTTON[9];
+assign BUTTONe_10 = BUTTON10 & BUTTON[10];
+assign BUTTONe_11 = BUTTON11 & BUTTON[11];
+assign BUTTONe_12 = BUTTON12 & BUTTON[12];
+assign BUTTONe_13 = BUTTON13 & BUTTON[13];
+assign BUTTONe_14 = BUTTON14 & BUTTON[14];
+assign BUTTONe_15 = BUTTON15 & BUTTON[15];
+assign BUS0_e = BUS0 & BUS[0];
+assign BUS1_e = BUS1 & BUS[1];
+assign BUS2_e = BUS2 & BUS[2];
+assign BUS3_e = BUS3 & BUS[3];
+assign BUS4_e = BUS4 & BUS[4];
+//--------------------------------BUTTON CLK 최적화----------------------------
+
+//2018440087
+
+//STATE 변화
+always @ (negedge RESET or posedge CLK)
+begin
+	if(RESET == 1'b0)
+		STATE <= DELAY;
+	else
+		begin
+			case (STATE)
+      //2018440087
+				DELAY :
+					if (CNT == 70) STATE <= FUNCTION_SET;
+				FUNCTION_SET : 
+					if (CNT == 30) STATE <= DISP_ONOFF;
+				DISP_ONOFF : 
+					if (CNT == 30) STATE <= ENTRY_MODE;
+				ENTRY_MODE : 
+					if (CNT == 30) STATE <= LINE1;
+				LINE1 : 
+					if (CNT == 20) STATE <= LINE2;
+				LINE2 : 
+					if (CNT == 20) STATE <= LINE1;
+				default : STATE <= DELAY;
+			endcase
+		end
+end
+
+//CNT 변화
+always @ (negedge RESET or posedge CLK)
+begin
+	if(RESET == 1'b0)
+		CNT <= 0;
+	else
+		begin
+			case (STATE)
+				DELAY :
+					if (CNT >= 70) CNT <= 0;
+					else CNT <= CNT + 1;
+				FUNCTION_SET : 
+					if (CNT >= 30) CNT <= 0;
+					else CNT <= CNT + 1;
+				DISP_ONOFF : 
+					if (CNT >= 30) CNT <= 0;
+					else CNT <= CNT + 1;
+				ENTRY_MODE : 
+					if (CNT >= 30) CNT <= 0;
+					else CNT <= CNT + 1;
+				LINE1 : 
+					if (CNT >= 20) CNT <= 0;
+					else CNT <= CNT + 1;
+				LINE2 : 
+					if (CNT >= 20) CNT <= 0;
+					else CNT <= CNT + 1;
+				default : CNT <= 0;
+			endcase
+		end
+end
+
+//LCD_DATA에 데이터 입력
+always @ (negedge RESET or posedge CLK)
+begin
+	if(RESET == 1'b0)
+		begin
+			LCD_RS <= 1'b1;
+			LCD_RW <= 1'b1;
+			LCD_DATA <= 8'b00000000;
+		end
+	else
+		begin
+			case (STATE)
+				FUNCTION_SET : 
+					begin LCD_RS <= 1'b0; LCD_RW <= 1'b0; LCD_DATA <= 8'b00111100; end
+				DISP_ONOFF : 
+					begin LCD_RS <= 1'b0; LCD_RW <= 1'b0; LCD_DATA <= 8'b00001100; end
+				ENTRY_MODE : 
+					begin LCD_RS <= 1'b0; LCD_RW <= 1'b0; LCD_DATA <= 8'b00000110; end
+				LINE1 : 
+				begin		
+						LCD_RW <= 1'b0;
+						case(CNT)
+							0 : begin LCD_RS <= 1'b0; LCD_DATA <= 8'b10000000; end
+							1 : begin LCD_RS <= 1'b1; LCD_DATA <= 8'b00110010; end//2 
+							2 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= 8'b00110000; // 0;
+									
+								end
+							3 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= 8'b00110001; // 1
+									//2018440087
+								end
+							4 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= 8'b00111000; // 8									
+								end
+							5 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <=  8'b00110100; //4
+
+//2018440087									
+								end
+							6 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <=  8'b00110100; // 4
+									
+								end
+							7 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= 8'b00110000; // 0
+									
+								end
+							8 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= 8'b00110000; //0
+									
+								end
+							9 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= 8'b00111000; // 8
+									
+								end
+							10 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <=8'b00110111; // 7
+								end
+							11 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= `space;
+									
+								end
+							12 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= `space;
+									
+								end
+							13 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= `O;
+									
+								end
+							14 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= `C;
+									
+								end
+							15 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= `S;
+									
+								end
+							16 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= `space;
+									
+								end
+							default : 
+								begin
+									LCD_RS <= 1'b1;
+									LCD_DATA <= 8'b00100000;
+								end
+							endcase
+					
+				//2018440087
+					end
+					
+					
+				
+						
+						
+					
+					LINE2 : 
+					begin		
+					
+
+						LCD_RW <= 1'b0;
+						
+						case(CNT)
+							0 :
+								begin
+									LCD_RS <= 1'b0;
+									LCD_DATA <= 8'b11000000;
+								end
+							1 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[127:120];
+									
+								end
+							2 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[119:112];
+									
+								end
+							3 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[111:104];
+									
+								end
+							4 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[103:96];
+									
+								end
+							5 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[95:88];
+									
+								end
+							6 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[87:80];
+									
+								end
+							7 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[79:72];
+									
+								end
+							8 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[71:64];
+									
+								end
+							9 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[63:56];
+									
+								end
+							10 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[55:48];
+									//2018440087
+								end
+							11 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[47:40];
+									
+								end
+							12 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[39:32];
+									
+								end
+							13 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[31:24];
+									
+								end
+							14 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[23:16];
+									
+								end
+							15 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[15:8];
+									
+								end
+							16 :
+								begin
+									
+									LCD_RS <= 1'b1;
+									LCD_DATA <= CAL_TEXT[7:0];
+									
+								end
+							default : 
+								begin
+									LCD_RS <= 1'b1;
+									LCD_DATA <= 8'b00100000;
+								end
+							endcase
+
+					end
+				default : 
+					begin
+						LCD_RS <= 1'b1;
+						LCD_DATA <= 8'b00000000;
+					end
+			endcase
+		end
+end
+
+assign LCD_E = CLK;
+
+
+
+
+
+
+
+//입력 & 연산
+always @(posedge CLK or negedge RESET)
+begin
+
+if(~RESET)
+begin
+	check <= 1;
+	temp1 <= 0;
+	temp2 <= 0;
+	temp3 <= 1;
+	NUMBER1 <= `space;
+	NUMBER2 <= `space;
+	NUMBER3 <= `space;
+	NUMBER4 <= `space;
+	OP <= `space;
+	NUM1 <= 0;
+	NUM2 <= 0;
+	NUM_temp <= 0;
+	Memory1 <=0;
+  //2018440087
+	Memory2 <=0;
+	ANS1 <= `space;
+	ANS2 <= `space;
+	ANS3 <= `space;
+	ANS4 <= `space;
+	ANS5 <= `space;
+	save_op <= 0;
+	facto1 <= `space;
+	facto2 <= `space;
+end
+
+else 
+begin
+	if (BUTTONe_11)	//리셋
+	begin
+		check <= 1; temp1 <= 0; temp2 <= 0; temp3 <= 1;
+		NUMBER1 <= `space; NUMBER2 <= `space; NUMBER3 <= `space; NUMBER4 <= `space;
+		OP <= `space; NUM1 <= 0; NUM2 <= 0; NUM_temp <= 0;
+ 		ANS1 <= `space; ANS2 <= `space; ANS3<= `space; ANS4 <= `space; ANS5 <= `space;
+		save_op <= 0; facto1 <= `space; facto2 <= `space;
+	end
+	else if (BUS1_e) //팩토리
+		begin
+			if (save_op==0)
+				begin
+					NUMBER1 <= `space;
+					case (NUM1)	//연산 계산
+						0 : begin NUM1 <= 1; facto1 <=8'b00100001; temp1 <=1; end
+						1 : begin NUM1 <= 1; temp1 <= 1; facto1 <=8'b00100001;end
+						2 : begin NUM1 <= 2; temp1 <= 2; facto1 <=8'b00100001;end
+						3 : begin NUM1 <= 6; temp1 <= 6; facto1 <=8'b00100001;end
+						4 : begin NUM1 <= 24; temp1 <= 24; facto1 <=8'b00100001;end
+						5 : begin NUM1 <= 120; temp1 <= 120;  facto1 <=8'b00100001;end
+						6 : begin NUM1 <= 720; temp1 <= 720;  facto1 <=8'b00100001;end
+						7 : begin NUM1 <= 5040; temp1 <= 5040; facto1 <=8'b00100001;end
+						8 : begin NUM1 <= 40320; temp1 <= 40320;  facto1 <=8'b00100001;end
+						9 : begin NUM1 <= 362880; temp1 <= 362880;  facto1 <=8'b00100001;end
+						default : NUM1 <= NUM1;	
+					endcase
+				end
+			else 
+				begin
+					NUMBER3 <= `space;
+					NUMBER4 <= 8'b00110000 + NUM2;
+					case (NUM2)	//연산 계산
+						0 : begin NUM2 <= 1; temp2 <=1; facto2 <=8'b00100001;end
+						1 : begin NUM2 <= 1; temp2 <=1; facto2 <=8'b00100001;end
+						2 : begin NUM2 <= 2; temp2 <=2; facto2 <=8'b00100001;end
+						3 : begin NUM2 <= 6; temp2 <=6; facto2 <=8'b00100001;end
+						4 : begin NUM2 <= 24; temp2 <=24; facto2 <=8'b00100001;end
+						5 : begin NUM2 <= 120; temp2 <=120; facto2 <=8'b00100001;end
+						6 : begin NUM2 <= 720; temp2 <=720; facto2 <=8'b00100001;end
+						7 : begin NUM2 <= 5040; temp2 <=5040; facto2 <=8'b00100001;end
+						8 : begin NUM2 <= 40320; temp2 <=40320; facto2 <=8'b00100001;end
+						9 : begin NUM2 <= 362880; temp2 <=362880; facto2 <=8'b00100001;end
+						default : NUM2 <= NUM2;
+					endcase					
+				end
+		end
+	else if (BUS3_e) //메모리 작동
+		begin
+			if (check ==1 | check==2) //첫 숫자 입력할 때 켰으면 첫 자리에 메모리 값 입력
+				begin
+					NUMBER1 <= 8'b00110000 + Memory1;  
+					NUM1 <= Memory1*10;				
+					save1 <= Memory1*10;
+					temp1 <=Memory1*10;
+					
+					NUMBER2 <= 8'b00110000 + Memory2;  
+					NUM1 <= NUM1 + Memory2;				
+					save1 <= NUM1 + Memory2;
+					temp1 <=NUM1 + Memory2;
+					check <=3;
+				end 
+			else if (check ==4 | check==5) // 두번째 숫자 입력 할 때
+				begin
+					NUMBER3 <= 8'b00110000 +Memory1;  
+					NUM2 <= Memory1*10;				
+					save2 <= Memory1*10;
+					temp2 <=Memory1*10;
+					
+					NUMBER4 <= 8'b00110000 +Memory2;  
+					NUM2 <= NUM2+Memory2;				
+					save2 <= NUM2+Memory2;
+          //2018440087
+					temp2 <=NUM2+Memory2;
+					check <=6;
+				end
+			else // Memory에 값을 저장하기
+				begin
+					Memory1 <= ANS4;
+					Memory2 <= ANS5;
+				end
+		end
+	else if (check == 1)		// 초기화를 해야 입력가능 첫 숫자 십의 자리
+	begin
+		if (BUTTONe_9)
+		begin
+			NUMBER1 <= 8'b00110000;  //LCD_DATA에 입력 할 데이타
+			NUM1 <= 0;					// 연산에 필요한 데이타
+			save1 <= 0;
+			temp1 <=0;
+			check <= 2;
+		end
+		else if (BUTTONe_0)
+		begin
+			NUMBER1 <= 8'b00110001;
+			NUM1 <= 10;
+			save1 <= 1;
+			temp1 <=10;
+			check <= 2;
+		end
+		else if (BUTTONe_1)
+		begin
+			NUMBER1 <= 8'b00110010;
+			NUM1 <= 20;
+			save1 <= 2;
+			temp1 <=20;
+			check <= 2;
+		end
+		else if (BUTTONe_2)
+		begin
+			NUMBER1 <= 8'b00110011;
+			NUM1 <= 30;
+			save1 <= 3;
+			temp1 <=30;
+			check <= 2;
+		end
+		else if (BUTTONe_3)
+		begin
+			NUMBER1 <= 8'b00110100;
+			NUM1 <= 40;
+			save1 <= 4;
+			temp1 <=40;
+			check <= 2;
+		end
+		else if (BUTTONe_4)
+		begin
+			NUMBER1 <= 8'b00110101;
+			NUM1 <= 50;
+			save1 <= 5;
+			temp1 <=50;
+			check <= 2;
+		end
+		else if (BUTTONe_5)
+		begin
+			NUMBER1 <= 8'b00110110;
+			NUM1 <= 60;
+			save1 <= 6;
+			temp1 <=60;
+			check <= 2;
+		end
+		else if (BUTTONe_6)
+		begin
+			NUMBER1 <= 8'b00110111;
+			NUM1 <= 70;
+			save1 <= 7;
+			temp1 <=70;
+			check <= 2;
+		end
+		else if (BUTTONe_7)
+		begin
+			NUMBER1 <= 8'b00111000;
+			NUM1 <= 80;
+			save1 <= 8;
+			temp1 <=80;
+      //2018440087
+			check <= 2;
+		end
+		else if (BUTTONe_8)
+		begin
+			NUMBER1 <= 8'b00111001;
+			NUM1 <= 90;
+			save1 <= 9;
+			temp1 <=90;
+			check <= 2;
+		end
+		else
+		begin
+			check <= check;
+		end
+	end
+	// 첫 숫자 일의 자리
+	else if (check == 2)		
+	begin
+		if (BUTTONe_9)
+		begin
+			NUMBER2 <= 8'b00110000;
+			NUM1<= NUM1 + 0;
+			save2 <= 0;
+			temp1 <= temp1 +0;
+			check <= 3;
+		end
+		else if (BUTTONe_0)
+		begin
+			NUMBER2 <= 8'b00110001;
+			NUM1 <= NUM1 + 1;
+			save2 <= 1;
+			temp1 <= temp1 +1;
+			check <= 3;
+		end
+		else if (BUTTONe_1)
+		begin
+			NUMBER2 <= 8'b00110010;
+			NUM1 <= NUM1 + 2;
+			save2 <= 2;
+			temp1 <= temp1 +2;
+			check <= 3;
+		end
+		else if (BUTTONe_2)
+		begin
+			NUMBER2 <= 8'b00110011;
+			NUM1 <= NUM1 + 3;
+			save2<= 3;
+			temp1 <= temp1 +3;
+			check <= 3;
+		end
+		else if (BUTTONe_3)
+		begin
+			NUMBER2 <= 8'b00110100;
+			NUM1 <= NUM1 + 4;
+			save2 <= 4;
+			temp1 <= temp1 +4;
+			check <= 3;
+		end
+		else if (BUTTONe_4)
+		begin
+			NUMBER2 <= 8'b00110101;
+			NUM1 <= NUM1 + 5;
+			save2 <= 5;
+			temp1 <= temp1 +5;
+			check <= 3;
+		end
+		else if (BUTTONe_5)
+		begin
+			NUMBER2 <= 8'b00110110;
+			NUM1 <= NUM1 + 6;
+			save2 <= 6;
+			temp1 <= temp1 +6;
+			check <= 3;
+		end
+		else if (BUTTONe_6)
+		begin
+			NUMBER2 <= 8'b00110111;
+			NUM1 <= NUM1 + 7;
+			save2 <= 7;
+			temp1 <= temp1 +7;
+			check <= 3;
+		end
+		else if (BUTTONe_7)
+		begin
+			NUMBER2 <= 8'b00111000;
+			NUM1<= NUM1 + 8;
+			save2 <= 8;
+			temp1 <= temp1 +8;
+			check <= 3;
+		end
+		else if (BUTTONe_8)
+		begin
+			NUMBER2 <= 8'b00111001;
+			NUM1<= NUM1 + 9;
+			save2 <= 9;
+			temp1 <= temp1 +9;
+			check <= 3;
+		end
+		else
+		begin
+			check <= check;
+      //2018440087
+		end
+	end
+	
+	else if (check == 3)		// 연산자
+	begin
+		if (BUTTONe_12)		// 덧셈
+		begin
+			OP <= 8'b00101011;
+			save_op <= 1;
+			check <= 4;
+		end
+		else if (BUTTONe_13)	// 뺄셈
+		begin
+			OP <= 8'b00101101;
+			save_op <= 2;
+			check <= 4;
+		end
+		else if (BUTTONe_14)	// 곱셈
+		begin
+			OP <= 8'b00101010;
+			save_op <= 3;
+			check <= 4;
+		end
+		else if (BUTTONe_15)	// 제곱
+		begin
+			OP <= 8'b01011110;
+			save_op <= 4;
+			check <= 4;
+		end
+		else if (BUS0_e)   // 나누기 몫 구하기
+			begin
+			NUM_temp1 <= NUM1;
+			OP <= 8'b00101111; // /
+			save_op <=5;
+			check <=4;
+			end
+		else if (BUS4_e)   // 나누기 나머지 구하기
+			begin
+			NUM_temp1 <= NUM1;
+			OP <= 8'b00100101; //%
+			save_op <=6;
+			check <=4;
+			end
+		else
+		begin
+			check <= check;
+		end
+	end
+	// 두번째 숫자 십의 자리
+	else if (check == 4)		
+	begin
+		if (BUTTONe_9)
+		begin
+			NUMBER3 <= 8'b00110000;
+			NUM2 <= 0;
+			save3 <= 0;
+			temp2 <= 0;
+			check <= 5;
+		end
+		else if (BUTTONe_0)
+		begin
+			NUMBER3 <= 8'b00110001;
+			NUM2 <= 10;
+			save3 <= 1;
+			temp2 <= 10;
+			check <= 5;
+		end
+		else if (BUTTONe_1)
+		begin
+			NUMBER3 <= 8'b00110010;
+			NUM2 <= 20;
+			save3 <= 2;
+			temp2 <= 20;
+			check <= 5;
+		end
+		else if (BUTTONe_2)
+		begin
+			NUMBER3 <= 8'b00110011;
+			NUM2 <= 30;
+			save3 <= 3;
+			temp2 <= 30;
+			check <= 5;
+		end
+		else if (BUTTONe_3)
+		begin
+			NUMBER3 <= 8'b00110100;
+			NUM2 <= 40;
+			save3 <= 4;
+			temp2 <= 40;
+			check <= 5;
+		end
+		else if (BUTTONe_4)
+		begin
+			NUMBER3 <= 8'b00110101;
+			NUM2 <= 50;
+			save3 <= 5;
+			temp2 <= 50;
+			check <= 5;
+		end
+		else if (BUTTONe_5)
+		begin
+			NUMBER3 <= 8'b00110110;
+			NUM2 <= 60;
+			save3 <= 6;
+			temp2 <= 60;
+			check <= 5;
+		end
+		else if (BUTTONe_6)
+		begin
+			NUMBER3 <= 8'b00110111;
+			NUM2 <= 70;
+			save3 <= 7;
+			temp2 <= 70;
+			check <= 5;
+      //2018440087
+		end
+		else if (BUTTONe_7)
+		begin
+			NUMBER3 <= 8'b00111000;
+			NUM2 <= 80;
+			save3 <= 8;
+			temp2 <= 80;
+			check <= 5;
+		end
+		else if (BUTTONe_8)
+		begin
+			NUMBER3 <= 8'b00111001;
+			NUM2 <= 90;
+			save3 <= 9;
+			temp2 <= 90;
+			check <= 5;
+		end
+		else
+		begin
+			check<= check;
+		end
+	end
+	
+	else if (check == 5)		// 두번째 숫자 일의 자리
+	begin
+		if (BUTTONe_9)
+		begin
+			NUMBER4 <= 8'b00110000;
+			NUM2 <= NUM2 + 0;
+			save4 <= 0;
+			temp2 <= temp2 +0;
+			check <= 6;
+		end
+		else if (BUTTONe_0)
+		begin
+			NUMBER4 <= 8'b00110001;
+			NUM2 <= NUM2 + 1;
+			save4 <= 1;
+			temp2 <= temp2 +1;
+			check <= 6;
+		end
+		else if (BUTTONe_1)
+		begin
+			NUMBER4 <= 8'b00110010;
+			NUM2<= NUM2 + 2;
+			save4 <= 2;
+			temp2 <= temp2 +2;
+			check <= 6;
+		end
+		else if (BUTTONe_2)
+		begin
+			NUMBER4 <= 8'b00110011;
+			NUM2 <= NUM2 + 3;
+			save4 <= 3;
+			temp2 <= temp2 +3;
+			check <= 6;
+		end
+		else if (BUTTONe_3)
+		begin
+			NUMBER4 <= 8'b00110100;
+			NUM2 <= NUM2 + 4;
+			save4 <= 4;
+			temp2 <= temp2 +4;
+			check <= 6;
+		end
+		else if (BUTTONe_4)
+		begin
+			NUMBER4 <= 8'b00110101;
+			NUM2 <= NUM2 + 5;
+			save4 <= 5;
+			temp2 <= temp2 +5;
+			check <= 6;
+		end
+		else if (BUTTONe_5)
+		begin
+			NUMBER4 <= 8'b00110110;
+			NUM2 <= NUM2 + 6;
+			save4 <= 6;
+			temp2 <= temp2 +6;
+			check <= 6;
+		end
+		else if (BUTTONe_6)
+		begin
+			NUMBER4 <= 8'b00110111;
+			NUM2 <= NUM2 + 7;
+			save4 <= 7;
+			temp2 <= temp2 +7;
+			check <= 6;
+      //2018440087
+		end
+		else if (BUTTONe_7)
+		begin
+			NUMBER4 <= 8'b00111000;
+			NUM2 <= NUM2 + 8;
+			save4 <= 8;
+			temp2 <= temp2 +8;
+			check <= 6;
+		end
+		else if (BUTTONe_8)
+		begin
+			NUMBER4 <= 8'b00111001;
+			NUM2 <= NUM2 + 9;
+			save4 <= 9;
+			temp2 <= temp2 +9;
+			check <= 6;
+		end
+		else
+		begin
+			check <= check;
+		end
+	end
+	else if (check ==6) // enter 누를 때까지 대기
+		begin
+			if (BUTTONe_10) 
+				begin
+					check<=7;
+				end
+			else
+				check<=check;
+		end
+	else if (check == 7)
+	begin
+			case (save_op)	//연산 계산
+				1 : begin NUM_temp <= NUM1 + NUM2; check <= 8; end
+				2 : begin NUM_temp <= NUM1 - NUM2; check <= 8; end
+				3 : begin NUM_temp <= NUM1 * NUM2; check <= 8; end
+				4 : begin 
+						if (temp2>0)
+							begin
+								temp2 <=temp2-1;
+								temp3 <= temp3*temp1;
+							end
+						else begin NUM_temp <= temp3; check <= 8;   end
+					end
+				5 : begin //나누기 몫
+						if (NUM_temp1 >=NUM2) 
+							begin NUM_temp1 <= NUM_temp1 - NUM2;
+							NUM_temp <= NUM_temp+1; end
+						else  check <=8;	
+					end 
+				6 : begin // 나누기 나머지
+						if (NUM_temp1 >=NUM2) 
+							begin NUM_temp1 <= NUM_temp1 - NUM2; end
+						else  begin NUM_temp <= NUM_temp1; check <=8;	end
+					end
+				default : begin NUM_temp <= NUM1 + NUM2; check <= 8;  end
+			endcase
+	end
+	else if (check ==8)
+		begin
+				if (NUM_temp == 0)
+					begin
+						ANS1 <= `n0;
+						ANS2 <= `space;
+						ANS3 <= `space;
+						ANS4 <= `space;
+						ANS5 <= `space;
+						check <=14;
+					end
+				else 
+					begin
+						ANS1 <= `n0;
+						ANS2 <= `n0;
+						ANS3 <= `n0;
+						ANS4 <= `n0;
+						ANS5 <= `n0;
+						check <=9;
+            //2018440087 오찬솔
+					end
+		end
+	else if (check ==9)
+			// 결과값 출력
+			begin
+				if (NUM_temp >= 10000)		//만단위 카운트
+					begin
+						NUM_temp <= NUM_temp - 10000;
+						ANS1 <= ANS1 + 1;
+					end
+				else if (ANS1 ==0 & NUM_temp>0)
+					begin
+						ANS1 <= `space;
+					end
+				else check <=10;
+			end
+	else if (check ==10)
+			// 결과값 출력
+			begin
+				if (NUM_temp >= 1000)		//천단위 카운트
+					begin
+						NUM_temp <= NUM_temp - 1000;
+						ANS2 <= ANS2 + 1;
+					end
+				else if (ANS2 ==0 & NUM_temp>0)
+					begin
+						ANS2 <= `space;
+					end
+				else check <=11;
+			end
+			
+		else if (check == 11)
+			begin
+				if (NUM_temp >= 100)		//백단위 카운트
+					begin
+						NUM_temp <= NUM_temp - 100;
+						ANS3 <= ANS3 + 1;
+					end
+				else if (ANS3 ==0 & NUM_temp>0)
+					begin
+						ANS3 <= `space;
+					end
+				else check <=12;
+			end
+			
+		else if (check == 12)
+			begin
+				if (NUM_temp >= 10)		//십단위 카운트
+					begin
+						NUM_temp <= NUM_temp - 10;
+						ANS4 <= ANS4 + 1;
+					end
+				else if (ANS4 ==0 & NUM_temp>0)
+					begin
+						ANS4 <= `space;
+					end
+				else check <=13;
+			end
+						
+		else if (check ==13)
+			begin
+				if (NUM_temp >= 1)		//일단위 카운트
+					begin
+						NUM_temp <= NUM_temp - 1;
+						ANS5 <= ANS5 + 1;
+					end
+				else check <=14;
+			end
+			
+		else if (check ==14)
+			begin
+				ANS1 <= ANS1;
+				ANS2 <= ANS2;
+				ANS3 <= ANS3;
+				ANS4 <= ANS4;
+				ANS5 <= ANS5;
+			end
+						
+
+		else
+		begin
+			ANS1 <= `E;
+			ANS2 <= `R;
+			ANS3 <= `R;
+			ANS4 <= `O;
+			ANS5 <= `R;
+		end
+	end
+end
+
+
+
+endmodule
+
